@@ -1,8 +1,13 @@
 import { z } from 'zod'
-import { parseEnv, urlSchema } from './env.utils'
+
+const urlSchema = z.url().transform((url) => url.replace(/\/+$/, ""))
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+
+  // Database
+  DATABASE_URL: z.string().default('file:sqlite.db'),
+  DATABASE_AUTH_TOKEN: z.string().optional(),
 
   // Optional URLs (with fallbacks in code)
   AUTH_APP_URL: urlSchema.optional(),
@@ -18,4 +23,4 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>
 
-export const env = parseEnv(envSchema)
+export const env = envSchema.parse(process.env)

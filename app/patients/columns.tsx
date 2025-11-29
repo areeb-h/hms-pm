@@ -51,7 +51,7 @@ const ActionsCell = ({
   ]
   return (
     <div className="flex items-center gap-2">
-      <form id={formId} action={dischargeAction} method="post">
+      <form id={formId} action={dischargeAction}>
         <input type="hidden" name="patientId" value={String(id)} />
       </form>
       <ActionDropdown actions={actions} />
@@ -83,7 +83,7 @@ export const columns = (
     header: 'DOB',
     cell: ({ getValue }: { getValue: () => unknown }) => {
       const v = getValue() as string | undefined | null
-      return v ? new Date(v).toLocaleDateString() : '-'
+      return v ? new Date(v).toLocaleDateString('en-US') : '-'
     },
   },
   {
@@ -98,7 +98,7 @@ export const columns = (
     header: 'Admission Date',
     cell: ({ getValue }: { getValue: () => unknown }) => {
       const v = getValue() as string | undefined | null
-      return v ? new Date(v).toLocaleDateString() : '-'
+      return v ? new Date(v).toLocaleDateString('en-US') : '-'
     },
   },
   {

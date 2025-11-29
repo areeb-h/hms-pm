@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { sql, relations } from 'drizzle-orm'
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const ward = sqliteTable('ward', {
@@ -57,3 +57,31 @@ export const treatmentRecord = sqliteTable('treatment_record', {
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
 })
+
+// Relations
+export const patientRelations = relations(patient, ({ one }) => ({
+  ward: one(ward, {
+    fields: [patient.wardId],
+    references: [ward.id],
+  }),
+  team: one(team, {
+    fields: [patient.teamId],
+    references: [team.id],
+  }),
+}))
+
+export const wardRelations = relations(ward, ({ many }) => ({
+  patients: many(patient),
+}))
+
+export const teamRelations = relations(team, ({ many }) => ({
+  patients: many(patient),
+  doctors: many(doctor),
+}))
+
+export const doctorRelations = relations(doctor, ({ one }) => ({
+  team: one(team, {
+    fields: [doctor.teamId],
+    references: [team.id],
+  }),
+}))

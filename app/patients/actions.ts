@@ -267,12 +267,12 @@ export async function getPatients({
 
     // sorting
     const sortDir = sortOrder === 'asc' ? sql`asc` : sql`desc`
-    const sortMap: Record<string, any> = {
+    const sortMap: Record<string, ReturnType<typeof sql>> = {
       name: sql`${patient.name} ${sortDir}`,
       admissionDate: sql`${patient.createdAt} ${sortDir}`,
     }
 
-    const orderClause = sortMap[sortBy ?? ''] ?? undefined
+    const orderClause = sortMap[sortBy ?? 'admissionDate'] ?? sql`${patient.createdAt} desc`
 
     const data = await db
       .select(fullPatientFields)
