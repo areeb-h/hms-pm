@@ -77,40 +77,40 @@ export const columns = (
   transferAction: (formData: FormData) => Promise<void>,
   wards: Ward[]
 ): PatientColumns => [
-  { accessorKey: 'name', header: 'Name' },
-  {
-    accessorKey: 'dob',
-    header: 'DOB',
-    cell: ({ getValue }: { getValue: () => unknown }) => {
-      const v = getValue() as string | undefined | null
-      return v ? new Date(v).toLocaleDateString('en-US') : '-'
+    { accessorKey: 'name', header: 'Name' },
+    {
+      accessorKey: 'dob',
+      header: 'DOB',
+      cell: ({ getValue }: { getValue: () => unknown }) => {
+        const v = getValue() as string | undefined | null
+        return v ? new Date(v).toLocaleDateString('en-US') : '-'
+      },
     },
-  },
-  {
-    id: 'age',
-    header: 'Age',
-    cell: ({ row }: { row: { original: PatientRow } }) => calculateAge(row.original.dob),
-  },
-  { accessorKey: 'wardName', header: 'Ward' },
-  { accessorKey: 'teamName', header: 'Team' },
-  {
-    accessorKey: 'admissionDate',
-    header: 'Admission Date',
-    cell: ({ getValue }: { getValue: () => unknown }) => {
-      const v = getValue() as string | undefined | null
-      return v ? new Date(v).toLocaleDateString('en-US') : '-'
+    {
+      id: 'age',
+      header: 'Age',
+      cell: ({ row }: { row: { original: PatientRow } }) => calculateAge(row.original.dob),
     },
-  },
-  {
-    id: 'actions',
-    header: 'Actions',
-    cell: ({ row }) => (
-      <ActionsCell
-        row={row}
-        dischargeAction={dischargeAction}
-        transferAction={transferAction}
-        wards={wards}
-      />
-    ),
-  },
-]
+    { accessorKey: 'wardName', header: 'Ward' },
+    { accessorKey: 'teamName', header: 'Team' },
+    {
+      accessorKey: 'admissionDate',
+      header: 'Admission Date',
+      cell: ({ getValue }: { getValue: () => unknown }) => {
+        const v = getValue() as string | undefined | null
+        return v ? new Date(v).toLocaleDateString('en-US') : '-'
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <ActionsCell
+          row={row}
+          dischargeAction={dischargeAction}
+          transferAction={transferAction}
+          wards={wards}
+        />
+      ),
+    },
+  ]
