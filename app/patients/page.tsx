@@ -18,6 +18,7 @@ import { PatientsClient } from './patients-client'
 export default async function PatientsPage(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+
   const searchParams = await props.searchParams
   const params = await patientsSearchParamsCache.parse(searchParams)
 
