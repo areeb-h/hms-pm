@@ -1,12 +1,25 @@
 import { ColumnDef } from '@tanstack/react-table'
 
+export type Ward = {
+  id: number
+  name: string
+  genderType: 'male' | 'female'
+  capacity: number
+  createdAt: string
+}
+
+
 export interface PatientRow {
   id: number
   name: string
-  dob?: string | null
-  wardName?: string | null
-  teamName?: string | null
-  admissionDate?: string | null
+  dob: string | null
+  gender: 'male' | 'female'
+  wardId: number | null
+  wardName: string | null
+  teamId: number | null
+  teamName: string | null
+  admissionDate: string
+  dischargedAt?: string | null
 }
 
 export interface DoctorRow {
