@@ -14,7 +14,7 @@ const fullPatientFields = {
   id: patient.id,
   name: patient.name,
   dob: patient.dob,
-  gender: patient.gender,
+  gender: sql<'male' | 'female'>`${patient.gender}`,
   wardId: patient.wardId,
   teamId: patient.teamId,
   wardName: ward.name,
@@ -169,7 +169,15 @@ export async function dischargePatient(formData: FormData) {
 
 export async function getWards() {
   try {
-    return await db.select().from(ward)
+    return await db
+      .select({
+        id: ward.id,
+        name: ward.name,
+        genderType: sql<'male' | 'female'>`${ward.genderType}`,
+        capacity: ward.capacity,
+        createdAt: ward.createdAt,
+      })
+      .from(ward)
   } catch (error) {
     console.error('Error fetching wards:', error)
     return []
@@ -281,4 +289,24 @@ export async function getPatients({
     console.error('Error fetching paginated patients:', error)
     return { data: [], totalCount: 0 }
   }
+}
+
+export async function getPatientsByWard(wardId: number) {
+  return db.query.patient.findMany({
+    where: eq(patient.wardId, wardId),
+    with: {
+      team: true,
+      ward: true,
+    }
+  })
+}
+
+export async function getPatientsByTeam(teamId: number) {
+  return db.query.patient.findMany({
+    where: eq(patient.teamId, teamId),
+    with: {
+      team: true,
+      ward: true,
+    }
+  })
 }
