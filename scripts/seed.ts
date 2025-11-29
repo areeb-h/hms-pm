@@ -1,8 +1,11 @@
-import { createClient } from '@libsql/client/sqlite3'
+import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import * as schema from '../db/schema'
 
-const client = createClient({ url: 'file:sqlite.db' })
+const client = createClient({
+  url: process.env.DATABASE_URL || 'file:sqlite.db',
+  ...(process.env.DATABASE_AUTH_TOKEN && { authToken: process.env.DATABASE_AUTH_TOKEN }),
+})
 const db = drizzle(client, { schema })
 
 const { ward, team, doctor, teamConsultant, patient } = schema
