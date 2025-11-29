@@ -65,7 +65,7 @@ function UserNav() {
             <AvatarFallback className="rounded-lg">AR</AvatarFallback>
           </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">Areeb Rahman</span>
+            <span className="truncate font-semibold">Areeb Hussain</span>
             <span className="truncate text-xs text-muted-foreground">Software Engineer</span>
           </div>
           <ChevronUp className="ml-auto size-4" />
