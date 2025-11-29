@@ -11,6 +11,12 @@ importers:
       '@libsql/client':
         specifier: ^0.15.15
         version: 0.15.15
+      '@next/swc-linux-x64-gnu':
+        specifier: ^16.0.5
+        version: 16.0.5
+      '@next/swc-win32-x64-msvc':
+        specifier: ^16.0.5
+        version: 16.0.5
       '@radix-ui/react-avatar':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -3836,8 +3842,7 @@ snapshots:
   '@next/swc-linux-arm64-musl@16.0.5':
     optional: true
 
-  '@next/swc-linux-x64-gnu@16.0.5':
-    optional: true
+  '@next/swc-linux-x64-gnu@16.0.5': {}
 
   '@next/swc-linux-x64-musl@16.0.5':
     optional: true
@@ -3845,8 +3850,7 @@ snapshots:
   '@next/swc-win32-arm64-msvc@16.0.5':
     optional: true
 
-  '@next/swc-win32-x64-msvc@16.0.5':
-    optional: true
+  '@next/swc-win32-x64-msvc@16.0.5': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

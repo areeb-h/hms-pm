@@ -3,79 +3,76 @@
 import { db } from '@/db/drizzle'
 import { patient, team, ward } from '@/db/schema'
 import { patientSchema } from '@/lib/validators'
-import { and, count, eq, isNull, sql } from 'drizzle-orm'
+import { and, count, eq, isNull, sql, ne } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+
+/**
+ * COMMON COLUMN SHAPE
+ * This guarantees NO TS mismatches in UI.
+ */
+const fullPatientFields = {
+  id: patient.id,
+  name: patient.name,
+  dob: patient.dob,
+  gender: patient.gender,
+  wardId: patient.wardId,
+  teamId: patient.teamId,
+  wardName: ward.name,
+  teamName: team.name,
+  admissionDate: patient.createdAt,
+  dischargedAt: patient.dischargedAt,
+}
+
+// ------------------ ADMIT PATIENT ---------------------
 
 export async function admitPatient(formData: FormData) {
   try {
-    // Extract and validate form data with better error handling
-    const rawDob = formData.get('dob') as string
-    const rawWardId = formData.get('wardId') as string
-    const rawTeamId = formData.get('teamId') as string
+    const rawDob = formData.get('dob') as string | null
+    const rawWardId = formData.get('wardId') as string | null
+    const rawTeamId = formData.get('teamId') as string | null
 
-    // Parse with validation
     const dob = rawDob || undefined
     const wardId = rawWardId ? parseInt(rawWardId, 10) : undefined
     const teamId = rawTeamId ? parseInt(rawTeamId, 10) : undefined
 
-    // Check for NaN values
-    if (rawWardId && isNaN(wardId!)) {
-      throw new Error('Invalid ward ID')
-    }
-    if (rawTeamId && isNaN(teamId!)) {
-      throw new Error('Invalid team ID')
-    }
-
     const data = {
-      name: formData.get('name') as string,
+      name: String(formData.get('name')),
       dob,
       gender: formData.get('gender') as 'male' | 'female',
       wardId,
       teamId,
     }
 
-    // Validate required fields manually first
-    if (!data.name?.trim()) {
-      throw new Error('Patient name is required')
-    }
-    if (!data.gender) {
-      throw new Error('Gender is required')
-    }
-    if (!data.wardId) {
-      throw new Error('Ward selection is required')
-    }
-    if (!data.teamId) {
-      throw new Error('Team selection is required')
-    }
+    // manual required fields
+    if (!data.name?.trim()) throw new Error('Patient name is required')
+    if (!data.gender) throw new Error('Gender is required')
+    if (wardId == null) throw new Error('Ward selection is required')
+    if (teamId == null) throw new Error('Team selection is required')
 
     const validated = patientSchema.safeParse(data)
-    if (!validated.success) {
-      throw new Error(validated.error.message)
-    }
+    if (!validated.success) throw new Error(validated.error.message)
 
-    // Check ward exists and gender match
-    const w = await db.select().from(ward).where(eq(ward.id, validated.data.wardId))
-    if (!w.length) {
-      throw new Error('Selected ward does not exist')
-    }
+    // Ward existence
+    const w = await db.select().from(ward).where(eq(ward.id, wardId))
+    if (!w.length) throw new Error('Selected ward does not exist')
+
     if (w[0].genderType !== validated.data.gender) {
       throw new Error(`This ward only accepts ${w[0].genderType} patients`)
     }
 
-    // Check capacity
+    // Ward capacity
     const patientCount = await db
       .select({ count: count() })
       .from(patient)
-      .where(eq(patient.wardId, validated.data.wardId))
+      .where(and(eq(patient.wardId, wardId), isNull(patient.dischargedAt)))
+
     if (patientCount[0].count >= w[0].capacity) {
-      throw new Error(`Ward is at full capacity (${w[0].capacity} patients)`)
+      throw new Error(`Ward is at full capacity (${w[0].capacity})`)
     }
 
-    // Check team exists
-    const t = await db.select().from(team).where(eq(team.id, validated.data.teamId))
-    if (!t.length) {
-      throw new Error('Selected team does not exist')
-    }
+    // Team existence
+    const t = await db.select().from(team).where(eq(team.id, teamId))
+    if (!t.length) throw new Error('Selected team does not exist')
 
     await db.insert(patient).values(validated.data)
     revalidatePath('/patients')
@@ -83,132 +80,92 @@ export async function admitPatient(formData: FormData) {
     return { success: true, message: 'Patient admitted successfully' }
   } catch (error) {
     console.error('Error admitting patient:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to admit patient')
+    throw new Error(
+      error instanceof Error ? error.message : 'Failed to admit patient',
+    )
   }
 }
 
-export async function getPatientsByWard(wardId: number) {
-  try {
-    return await db
-      .select({
-        id: patient.id,
-        name: patient.name,
-        dob: patient.dob,
-        admissionDate: patient.createdAt,
-      })
-      .from(patient)
-      .where(and(eq(patient.wardId, wardId), isNull(patient.dischargedAt)))
-  } catch (error) {
-    console.error('Error fetching patients by ward:', error)
-    return []
-  }
-}
-
-export async function getPatientsByTeam(teamId: number) {
-  try {
-    return await db
-      .select({
-        id: patient.id,
-        name: patient.name,
-        wardName: ward.name,
-        teamRole: sql`'Primary Care'`, // Default role
-      })
-      .from(patient)
-      .innerJoin(ward, eq(patient.wardId, ward.id))
-      .where(and(eq(patient.teamId, teamId), isNull(patient.dischargedAt)))
-  } catch (error) {
-    console.error('Error fetching patients by team:', error)
-    return []
-  }
-}
+// ------------------ TRANSFER PATIENT ---------------------
 
 export async function transferPatient(formData: FormData) {
   try {
     const rawPatientId = formData.get('patientId') as string
     const rawNewWardId = formData.get('newWardId') as string
 
-    if (!rawPatientId || !rawNewWardId) {
-      throw new Error('Patient ID and new ward are required')
-    }
+    const patientId = parseInt(rawPatientId || '', 10)
+    const newWardId = parseInt(rawNewWardId || '', 10)
 
-    const patientId = parseInt(rawPatientId, 10)
-    const newWardId = parseInt(rawNewWardId, 10)
+    if (isNaN(patientId) || isNaN(newWardId))
+      throw new Error('Invalid patient or ward ID')
 
-    if (isNaN(patientId)) {
-      throw new Error('Invalid patient ID')
-    }
-    if (isNaN(newWardId)) {
-      throw new Error('Invalid ward ID')
-    }
-
-    // Get patient
     const p = await db.select().from(patient).where(eq(patient.id, patientId))
-    if (!p.length) {
-      throw new Error('Patient not found')
-    }
-    if (p[0].dischargedAt) {
-      throw new Error('Cannot transfer a discharged patient')
-    }
+    if (!p.length) throw new Error('Patient not found')
+    if (p[0].dischargedAt) throw new Error('Cannot transfer discharged patient')
 
-    // Check new ward
+    // ward validation
     const w = await db.select().from(ward).where(eq(ward.id, newWardId))
-    if (!w.length) {
-      throw new Error('Selected ward does not exist')
-    }
-    if (w[0].genderType !== p[0].gender) {
+    if (!w.length) throw new Error('Selected ward does not exist')
+    if (w[0].genderType !== p[0].gender)
       throw new Error(`This ward only accepts ${w[0].genderType} patients`)
-    }
 
-    // Check capacity
-    const patientCount = await db
+    // ward capacity excluding current patient
+    const wc = await db
       .select({ count: count() })
       .from(patient)
-      .where(eq(patient.wardId, newWardId))
-    if (patientCount[0].count >= w[0].capacity) {
-      throw new Error(`Ward is at full capacity (${w[0].capacity} patients)`)
-    }
+      .where(
+        and(
+          eq(patient.wardId, newWardId),
+          isNull(patient.dischargedAt),
+          ne(patient.id, patientId),
+        ),
+      )
 
-    await db.update(patient).set({ wardId: newWardId }).where(eq(patient.id, patientId))
+    if (wc[0].count >= w[0].capacity)
+      throw new Error(`Ward is at full capacity (${w[0].capacity})`)
+
+    await db
+      .update(patient)
+      .set({ wardId: newWardId })
+      .where(eq(patient.id, patientId))
+
     revalidatePath('/patients')
   } catch (error) {
     console.error('Error transferring patient:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to transfer patient')
+    throw new Error(
+      error instanceof Error ? error.message : 'Failed to transfer patient',
+    )
   }
 }
+
+// ------------------ DISCHARGE ---------------------
 
 export async function dischargePatient(formData: FormData) {
   try {
     const rawPatientId = formData.get('patientId') as string
+    const patientId = parseInt(rawPatientId || '', 10)
 
-    if (!rawPatientId) {
-      throw new Error('Patient ID is required')
-    }
+    if (isNaN(patientId)) throw new Error('Invalid patient ID')
 
-    const patientId = parseInt(rawPatientId, 10)
-
-    if (isNaN(patientId)) {
-      throw new Error('Invalid patient ID')
-    }
-
-    // Check if patient exists
     const p = await db.select().from(patient).where(eq(patient.id, patientId))
-    if (!p.length) {
-      throw new Error('Patient not found')
-    }
-    if (p[0].dischargedAt) {
-      throw new Error('Patient is already discharged')
-    }
+    if (!p.length) throw new Error('Patient not found')
+    if (p[0].dischargedAt) throw new Error('Already discharged')
 
     await db
       .update(patient)
       .set({ dischargedAt: sql`CURRENT_TIMESTAMP` })
       .where(eq(patient.id, patientId))
+
     revalidatePath('/patients')
   } catch (error) {
     console.error('Error discharging patient:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to discharge patient')
+    throw new Error(
+      error instanceof Error ? error.message : 'Failed to discharge patient',
+    )
   }
 }
+
+// ------------------ HELPERS ---------------------
 
 export async function getWards() {
   try {
@@ -228,16 +185,16 @@ export async function getTeams() {
   }
 }
 
+// ------------------ LIST ALL PATIENTS ---------------------
+
+/**
+ * ALWAYS return full shape.
+ * UI never breaks.
+ */
 export async function getAllPatients() {
   try {
     return await db
-      .select({
-        id: patient.id,
-        name: patient.name,
-        dob: patient.dob,
-        wardName: ward.name,
-        teamName: team.name,
-      })
+      .select(fullPatientFields)
       .from(patient)
       .leftJoin(ward, eq(patient.wardId, ward.id))
       .leftJoin(team, eq(patient.teamId, team.id))
@@ -248,7 +205,8 @@ export async function getAllPatients() {
   }
 }
 
-// Server-side paginated & filtered patients query used by the ServerTable
+// ------------------ PAGINATION / SEARCH ---------------------
+
 export async function getPatients({
   page = 1,
   pageSize = 10,
@@ -271,11 +229,10 @@ export async function getPatients({
   endDate?: string | null
 }) {
   try {
-    const whereClauses: any[] = [isNull(patient.dischargedAt)]
+    const whereClauses = [isNull(patient.dischargedAt)]
 
     if (filter) {
-      const like = `%${filter}%`
-      whereClauses.push(sql`${patient.name} LIKE ${like}`)
+      whereClauses.push(sql`${patient.name} LIKE ${`%${filter}%`}`)
     }
 
     if (wardParam) {
@@ -288,48 +245,38 @@ export async function getPatients({
       if (!isNaN(tid)) whereClauses.push(eq(patient.teamId, tid))
     }
 
-    if (startDate) {
-      whereClauses.push(sql`${patient.createdAt} >= ${startDate}`)
-    }
-
-    if (endDate) {
-      whereClauses.push(sql`${patient.createdAt} <= ${endDate}`)
-    }
+    if (startDate) whereClauses.push(sql`${patient.createdAt} >= ${startDate}`)
+    if (endDate) whereClauses.push(sql`${patient.createdAt} <= ${endDate}`)
 
     const offset = Math.max(0, (page - 1) * pageSize)
 
-    // total count
+    // count
     const totalRes = await db
       .select({ count: count() })
       .from(patient)
       .where(and(...whereClauses))
     const totalCount = Number(totalRes[0]?.count ?? 0)
 
-    // ordering - basic mapping
-    let orderClause: any = undefined
-    if (sortBy) {
-      const dir = sortOrder === 'asc' ? 'asc' : 'desc'
-      if (sortBy === 'name') orderClause = sql`${patient.name} ${dir}`
-      else if (sortBy === 'admissionDate') orderClause = sql`${patient.createdAt} ${dir}`
+    // sorting
+    const sortDir = sortOrder === 'asc' ? sql`asc` : sql`desc`
+    const sortMap: Record<string, any> = {
+      name: sql`${patient.name} ${sortDir}`,
+      admissionDate: sql`${patient.createdAt} ${sortDir}`,
     }
 
-    const rows = await db
-      .select({
-        id: patient.id,
-        name: patient.name,
-        dob: patient.dob,
-        wardName: ward.name,
-        teamName: team.name,
-        admissionDate: patient.createdAt,
-      })
+    const orderClause = sortMap[sortBy ?? ''] ?? undefined
+
+    const data = await db
+      .select(fullPatientFields)
       .from(patient)
       .leftJoin(ward, eq(patient.wardId, ward.id))
       .leftJoin(team, eq(patient.teamId, team.id))
       .where(and(...whereClauses))
       .limit(pageSize)
       .offset(offset)
+      .orderBy(orderClause)
 
-    return { data: rows, totalCount }
+    return { data, totalCount }
   } catch (error) {
     console.error('Error fetching paginated patients:', error)
     return { data: [], totalCount: 0 }
