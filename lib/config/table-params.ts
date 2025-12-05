@@ -127,6 +127,36 @@ export const doctorsSearchParamsCache = createSearchParamsCache({
 export type DoctorsSearchParams = Awaited<ReturnType<typeof doctorsSearchParamsCache.parse>>
 
 // ============================================================================
+// 🏥 Wards Table Params
+// ============================================================================
+export const wardsSearchParamsCache = createSearchParamsCache({
+  ...baseParams,
+  genderType: parseAsString, // male, female
+})
+
+export type WardsSearchParams = Awaited<ReturnType<typeof wardsSearchParamsCache.parse>>
+
+// ============================================================================
+// 💊 Treatments Table Params
+// ============================================================================
+export const treatmentsSearchParamsCache = createSearchParamsCache({
+  ...baseParams,
+})
+
+export type TreatmentsSearchParams = Awaited<ReturnType<typeof treatmentsSearchParamsCache.parse>>
+
+// ============================================================================
+// 📋 Audit Logs Table Params
+// ============================================================================
+export const auditLogsSearchParamsCache = createSearchParamsCache({
+  page: parseAsInteger.withDefault(DEFAULT_PAGE),
+  limit: parseAsInteger.withDefault(DEFAULT_PAGE_SIZE),
+  sort: parseAsString.withDefault('timestamp.desc'),
+})
+
+export type AuditLogsSearchParams = Awaited<ReturnType<typeof auditLogsSearchParamsCache.parse>>
+
+// ============================================================================
 // 🧠 Helper Exports
 // ============================================================================
 export const tableParamCaches = {
@@ -136,4 +166,7 @@ export const tableParamCaches = {
   roleRequests: roleRequestsSearchParamsCache,
   patients: patientsSearchParamsCache,
   teams: teamsSearchParamsCache,
+  wards: wardsSearchParamsCache,
+  treatments: treatmentsSearchParamsCache,
+  auditLogs: auditLogsSearchParamsCache,
 }

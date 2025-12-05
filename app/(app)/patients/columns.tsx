@@ -2,7 +2,7 @@
 
 import { ActionDropdown } from '@/components/action-dropdown'
 import { PatientColumns, PatientRow, Ward } from '@/types/patients'
-import { ArrowRightLeft, UserMinus } from 'lucide-react'
+import { ArrowRightLeft, Eye, UserMinus } from 'lucide-react'
 import { useState } from 'react'
 import { DischargePatientDialog } from './discharge-patient-dialog'
 import { TransferPatientDialog } from './transfer-patient-dialog'
@@ -24,17 +24,25 @@ const ActionsCell = ({
   dischargeAction,
   transferAction,
   wards,
+  onViewDetails,
 }: {
   row: { original: PatientRow }
   dischargeAction: (formData: FormData) => Promise<void>
   transferAction: (formData: FormData) => Promise<void>
   wards: Ward[]
+  onViewDetails?: (patient: PatientRow) => void
 }) => {
   const id = row.original.id
   const [transferOpen, setTransferOpen] = useState(false)
   const [dischargeOpen, setDischargeOpen] = useState(false)
   const formId = `discharge-${id}`
   const actions = [
+    {
+      id: 'view',
+      label: 'View Details',
+      icon: Eye,
+      onClick: () => onViewDetails?.(row.original),
+    },
     {
       id: 'transfer',
       label: 'Transfer',
@@ -75,42 +83,44 @@ const ActionsCell = ({
 export const columns = (
   dischargeAction: (formData: FormData) => Promise<void>,
   transferAction: (formData: FormData) => Promise<void>,
-  wards: Ward[]
+  wards: Ward[],
+  onViewDetails?: (patient: PatientRow) => void
 ): PatientColumns => [
-    { accessorKey: 'name', header: 'Name' },
-    {
-      accessorKey: 'dob',
-      header: 'DOB',
-      cell: ({ getValue }: { getValue: () => unknown }) => {
-        const v = getValue() as string | undefined | null
-        return v ? new Date(v).toLocaleDateString('en-US') : '-'
-      },
+  { accessorKey: 'name', header: 'Name' },
+  {
+    accessorKey: 'dob',
+    header: 'DOB',
+    cell: ({ getValue }: { getValue: () => unknown }) => {
+      const v = getValue() as string | undefined | null
+      return v ? new Date(v).toLocaleDateString('en-US') : '-'
     },
-    {
-      id: 'age',
-      header: 'Age',
-      cell: ({ row }: { row: { original: PatientRow } }) => calculateAge(row.original.dob),
+  },
+  {
+    id: 'age',
+    header: 'Age',
+    cell: ({ row }: { row: { original: PatientRow } }) => calculateAge(row.original.dob),
+  },
+  { accessorKey: 'wardName', header: 'Ward' },
+  { accessorKey: 'teamName', header: 'Team' },
+  {
+    accessorKey: 'admissionDate',
+    header: 'Admission Date',
+    cell: ({ getValue }: { getValue: () => unknown }) => {
+      const v = getValue() as string | undefined | null
+      return v ? new Date(v).toLocaleDateString('en-US') : '-'
     },
-    { accessorKey: 'wardName', header: 'Ward' },
-    { accessorKey: 'teamName', header: 'Team' },
-    {
-      accessorKey: 'admissionDate',
-      header: 'Admission Date',
-      cell: ({ getValue }: { getValue: () => unknown }) => {
-        const v = getValue() as string | undefined | null
-        return v ? new Date(v).toLocaleDateString('en-US') : '-'
-      },
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => (
-        <ActionsCell
-          row={row}
-          dischargeAction={dischargeAction}
-          transferAction={transferAction}
-          wards={wards}
-        />
-      ),
-    },
-  ]
+  },
+  {
+    id: 'actions',
+    header: 'Actions',
+    cell: ({ row }) => (
+      <ActionsCell
+        row={row}
+        dischargeAction={dischargeAction}
+        transferAction={transferAction}
+        wards={wards}
+        onViewDetails={onViewDetails}
+      />
+    ),
+  },
+]

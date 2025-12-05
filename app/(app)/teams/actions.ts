@@ -57,6 +57,17 @@ export async function createDoctor(formData: FormData) {
     if (existingConsultant.length > 0) {
       throw new Error('Team already has a consultant')
     }
+
+    // Check if team has at least one junior doctor (grade 1)
+    const juniorDoctors = await db
+      .select()
+      .from(doctor)
+      .where(and(eq(doctor.teamId, validated.data.teamId), eq(doctor.grade, 'junior1')))
+    if (juniorDoctors.length === 0) {
+      throw new Error(
+        'Team must have at least one Grade 1 junior doctor before adding a consultant'
+      )
+    }
   }
 
   const doctorResult = await db.insert(doctor).values(validated.data).returning({ id: doctor.id })

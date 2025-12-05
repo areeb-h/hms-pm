@@ -1,5 +1,6 @@
 import { CreateDoctorDialog } from '@/components/CreateDoctorDialog'
 import { Card, CardContent } from '@/components/ui/card'
+import { getCurrentUser } from '@/lib/auth'
 import { doctorsSearchParamsCache } from '@/lib/config/table-params'
 import { Stethoscope, UserCheck, Users, UserX } from 'lucide-react'
 import { createDoctor, getDoctors, getDoctorsPaginated, getTeams } from './actions'
@@ -8,6 +9,7 @@ import { DoctorsClient } from './doctors-client'
 export default async function DoctorsPage(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+  const user = await getCurrentUser()
   const searchParams = await props.searchParams
   const params = await doctorsSearchParamsCache.parse(searchParams)
 
@@ -40,9 +42,11 @@ export default async function DoctorsPage(props: {
             Manage hospital doctors, their grades, and team assignments
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <CreateDoctorDialog teams={teamsList} action={createDoctor} />
-        </div>
+        {user?.role === 'superadmin' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <CreateDoctorDialog teams={teamsList} action={createDoctor} />
+          </div>
+        )}
       </div>
 
       {/* Key Metrics */}

@@ -3,7 +3,7 @@
 import { db } from '@/db/drizzle'
 import { patient, team, ward } from '@/db/schema'
 import { patientSchema } from '@/lib/validators'
-import { and, count, eq, isNull, sql, ne } from 'drizzle-orm'
+import { and, count, eq, isNull, ne, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 /**
@@ -56,7 +56,8 @@ export async function admitPatient(formData: FormData) {
     const w = await db.select().from(ward).where(eq(ward.id, wardId))
     if (!w.length) throw new Error('Selected ward does not exist')
 
-    if (w[0].genderType !== validated.data.gender) {
+    // Check gender compatibility (mixed wards accept any gender)
+    if (w[0].genderType !== 'mixed' && w[0].genderType !== validated.data.gender) {
       throw new Error(`This ward only accepts ${w[0].genderType} patients`)
     }
 
@@ -80,9 +81,7 @@ export async function admitPatient(formData: FormData) {
     return { success: true, message: 'Patient admitted successfully' }
   } catch (error) {
     console.error('Error admitting patient:', error)
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to admit patient',
-    )
+    throw new Error(error instanceof Error ? error.message : 'Failed to admit patient')
   }
 }
 
@@ -96,8 +95,7 @@ export async function transferPatient(formData: FormData) {
     const patientId = parseInt(rawPatientId || '', 10)
     const newWardId = parseInt(rawNewWardId || '', 10)
 
-    if (isNaN(patientId) || isNaN(newWardId))
-      throw new Error('Invalid patient or ward ID')
+    if (isNaN(patientId) || isNaN(newWardId)) throw new Error('Invalid patient or ward ID')
 
     const p = await db.select().from(patient).where(eq(patient.id, patientId))
     if (!p.length) throw new Error('Patient not found')
@@ -106,35 +104,28 @@ export async function transferPatient(formData: FormData) {
     // ward validation
     const w = await db.select().from(ward).where(eq(ward.id, newWardId))
     if (!w.length) throw new Error('Selected ward does not exist')
-    if (w[0].genderType !== p[0].gender)
+
+    // Check gender compatibility (mixed wards accept any gender)
+    if (w[0].genderType !== 'mixed' && w[0].genderType !== p[0].gender) {
       throw new Error(`This ward only accepts ${w[0].genderType} patients`)
+    }
 
     // ward capacity excluding current patient
     const wc = await db
       .select({ count: count() })
       .from(patient)
       .where(
-        and(
-          eq(patient.wardId, newWardId),
-          isNull(patient.dischargedAt),
-          ne(patient.id, patientId),
-        ),
+        and(eq(patient.wardId, newWardId), isNull(patient.dischargedAt), ne(patient.id, patientId))
       )
 
-    if (wc[0].count >= w[0].capacity)
-      throw new Error(`Ward is at full capacity (${w[0].capacity})`)
+    if (wc[0].count >= w[0].capacity) throw new Error(`Ward is at full capacity (${w[0].capacity})`)
 
-    await db
-      .update(patient)
-      .set({ wardId: newWardId })
-      .where(eq(patient.id, patientId))
+    await db.update(patient).set({ wardId: newWardId }).where(eq(patient.id, patientId))
 
     revalidatePath('/patients')
   } catch (error) {
     console.error('Error transferring patient:', error)
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to transfer patient',
-    )
+    throw new Error(error instanceof Error ? error.message : 'Failed to transfer patient')
   }
 }
 
@@ -159,9 +150,7 @@ export async function dischargePatient(formData: FormData) {
     revalidatePath('/patients')
   } catch (error) {
     console.error('Error discharging patient:', error)
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to discharge patient',
-    )
+    throw new Error(error instanceof Error ? error.message : 'Failed to discharge patient')
   }
 }
 
@@ -297,7 +286,7 @@ export async function getPatientsByWard(wardId: number) {
     with: {
       team: true,
       ward: true,
-    }
+    },
   })
 }
 
@@ -307,6 +296,55 @@ export async function getPatientsByTeam(teamId: number) {
     with: {
       team: true,
       ward: true,
-    }
+    },
   })
+}
+
+export async function getPatientTreatmentsAction(patientId: number) {
+  'use server'
+  const { doctor, treatmentRecord } = await import('@/db/schema')
+  const { desc } = await import('drizzle-orm')
+
+  const treatments = await db
+    .select({
+      id: treatmentRecord.id,
+      doctorName: doctor.name,
+      doctorGrade: doctor.grade,
+      teamName: team.name,
+      description: treatmentRecord.description,
+      notes: treatmentRecord.notes,
+      treatmentDate: treatmentRecord.treatmentDate,
+      createdAt: treatmentRecord.createdAt,
+    })
+    .from(treatmentRecord)
+    .innerJoin(doctor, eq(treatmentRecord.doctorId, doctor.id))
+    .leftJoin(team, eq(doctor.teamId, team.id))
+    .where(eq(treatmentRecord.patientId, patientId))
+    .orderBy(desc(treatmentRecord.treatmentDate))
+
+  return treatments
+}
+
+export async function getDoctorsForTreatment() {
+  'use server'
+  const { doctor } = await import('@/db/schema')
+
+  const doctors = await db
+    .select({
+      id: doctor.id,
+      name: doctor.name,
+      grade: doctor.grade,
+      teamId: doctor.teamId,
+      teamName: team.name,
+    })
+    .from(doctor)
+    .leftJoin(team, eq(doctor.teamId, team.id))
+
+  return doctors
+}
+
+export async function recordTreatmentFromPatient(formData: FormData) {
+  'use server'
+  const { recordTreatment } = await import('@/app/(app)/treatment/actions')
+  return await recordTreatment(formData)
 }

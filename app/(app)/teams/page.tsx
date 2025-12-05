@@ -1,6 +1,7 @@
 import { CreateDoctorDialog } from '@/components/CreateDoctorDialog'
 import { CreateTeamDialog } from '@/components/CreateTeamDialog'
 import { Card, CardContent } from '@/components/ui/card'
+import { getCurrentUser } from '@/lib/auth'
 import { teamsSearchParamsCache } from '@/lib/config/table-params'
 import { Stethoscope, UserCheck, Users } from 'lucide-react'
 import {
@@ -16,6 +17,7 @@ import { TeamsClient } from './teams-client'
 export default async function TeamsPage(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+  const user = await getCurrentUser()
   const searchParams = await props.searchParams
   const params = await teamsSearchParamsCache.parse(searchParams)
 
@@ -50,10 +52,12 @@ export default async function TeamsPage(props: {
             Manage hospital teams, doctors, and consultant assignments
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <CreateTeamDialog consultants={consultants} action={createTeam} />
-          <CreateDoctorDialog teams={teamsList} action={createDoctor} />
-        </div>
+        {user?.role === 'superadmin' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <CreateTeamDialog consultants={consultants} action={createTeam} />
+            <CreateDoctorDialog teams={teamsList} action={createDoctor} />
+          </div>
+        )}
       </div>
 
       {/* Key Metrics */}

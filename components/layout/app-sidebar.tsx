@@ -1,6 +1,6 @@
 'use client'
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,16 +25,16 @@ import {
   Activity,
   Building,
   ChevronUp,
-  HelpCircle,
+  FileText,
   Home,
   LogOut,
-  Settings,
   Stethoscope,
   User,
   Users,
 } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 
 // Hospital Logo Component
 function HospitalLogo() {
@@ -52,7 +52,25 @@ function HospitalLogo() {
 }
 
 // User Nav Component
-function UserNav() {
+function UserNav({ user }: { user: { name: string; email: string; role: string } | null }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  const handleLogout = () => {
+    startTransition(async () => {
+      const { logoutAction } = await import('@/app/login/actions')
+      await logoutAction()
+      router.push('/login')
+    })
+  }
+
+  const initials =
+    user?.name
+      ?.split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase() || 'U'
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -61,12 +79,13 @@ function UserNav() {
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
           <Avatar className="h-8 w-8 rounded-lg">
-            <AvatarImage src="/placeholder-user.jpg" alt="User Avatar" />
-            <AvatarFallback className="rounded-lg">AR</AvatarFallback>
+            <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
           </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">Areeb Hussain</span>
-            <span className="truncate text-xs text-muted-foreground">Software Engineer</span>
+            <span className="truncate font-semibold">{user?.name || 'Guest'}</span>
+            <span className="truncate text-xs text-muted-foreground capitalize">
+              {user?.role || 'User'}
+            </span>
           </div>
           <ChevronUp className="ml-auto size-4" />
         </SidebarMenuButton>
@@ -77,16 +96,12 @@ function UserNav() {
         align="end"
         sideOffset={4}
       >
-        <DropdownMenuItem>
-          <Settings className="mr-2 h-4 w-4" />
-          Account Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <HelpCircle className="mr-2 h-4 w-4" />
-          Support
+        <DropdownMenuItem disabled>
+          <User className="mr-2 h-4 w-4" />
+          {user?.email || 'N/A'}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleLogout} disabled={isPending}>
           <LogOut className="mr-2 h-4 w-4" />
           Log out
         </DropdownMenuItem>
@@ -95,7 +110,11 @@ function UserNav() {
   )
 }
 
-export function AppSidebar() {
+export function AppSidebar({
+  user,
+}: {
+  user: { name: string; email: string; role: string } | null
+}) {
   const pathname = usePathname()
 
   // Main navigation items
@@ -144,6 +163,16 @@ export function AppSidebar() {
       icon: Activity,
       isActive: pathname === '/treatment',
     },
+    ...(user?.role === 'superadmin'
+      ? [
+          {
+            title: 'Audit Logs',
+            url: '/audit-logs',
+            icon: FileText,
+            isActive: pathname === '/audit-logs',
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -214,7 +243,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <UserNav />
+            <UserNav user={user} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

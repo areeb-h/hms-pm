@@ -1,5 +1,6 @@
 'use client'
 
+import { getTeamDetails } from '@/app/(app)/teams/actions'
 import {
   Dialog,
   DialogBody,
@@ -14,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TeamRow } from '@/types/patients'
 import { Calendar, Loader2, Stethoscope, UserCheck, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getTeamDetails } from '../app/teams/actions'
 
 interface TeamDetailsModalProps {
   team: TeamRow | null

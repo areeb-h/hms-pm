@@ -36,6 +36,20 @@
       "when": 1764346130428,
       "tag": "0004_breezy_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1764580274028,
+      "tag": "0005_shallow_kinsey_walden",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1764582759849,
+      "tag": "0006_melted_wolfsbane",
+      "breakpoints": true
     }
   ]
 }
